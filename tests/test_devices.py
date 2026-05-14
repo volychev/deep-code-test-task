@@ -1,129 +1,136 @@
 from httpx import AsyncClient
 
-async def test_create_device(async_client: AsyncClient):
-    user_response = await async_client.post(
-        "/users/",
-        json={"username": "device_owner", "email": "owner@example.com"}
-    )
-    user_id = user_response.json()["id"]
 
+async def _create_user(async_client: AsyncClient) -> int:
+    response = await async_client.post(
+        "/users/",
+        json={"username": "kirill", "email": "kirill@example.com"},
+    )
+    return response.json()["id"]
+
+
+async def _create_device(async_client: AsyncClient, name: str, user_id: int | None) -> dict:
     response = await async_client.post(
         "/devices/",
-        json={
-            "name": "Temperature Sensor",
-            "user_id": user_id
-        },
+        json={"name": name, "user_id": user_id},
     )
 
     assert response.status_code == 201
+    return response.json()
 
-    data = response.json()
+
+async def test_create_device(async_client: AsyncClient):
+    """
+    Проверяет создание сущности.
+
+    Ожидает успешный ответ и возврат идентификатора созданного объекта.
+    """
+
+    owner_id = await _create_user(async_client)
+    data = await _create_device(async_client, "Temperature Sensor", owner_id)
+
     assert data["name"] == "Temperature Sensor"
-    assert data["user_id"] == user_id
+    assert data["user_id"] == owner_id
+    assert "id" in data
+
+
+async def test_create_device_without_owner(async_client: AsyncClient):
+    """
+    Проверяет создание сущности без пользователя.
+
+    Ожидает успешный ответ и возврат идентификатора созданного объекта.
+    """
+
+    data = await _create_device(async_client, "Temperature Sensor", None)
+
+    assert data["name"] == "Temperature Sensor"
+    assert data["user_id"] is None
     assert "id" in data
 
 
 async def test_get_device(async_client: AsyncClient):
-    user_response = await async_client.post(
-        "/users/",
-        json={"username": "device_reader", "email": "reader@example.com"}
-    )
-    user_id = user_response.json()["id"]
+    """
+    Проверяет получение сущности по идентификатору.
 
-    create_response = await async_client.post(
-        "/devices/",
-        json={
-            "name": "Humidity Sensor",
-            "user_id": user_id
-        },
-    )
-    device_id = create_response.json()["id"]
+    Ожидает успешный ответ и корректные данные сохранённого объекта.
+    """
 
-    response = await async_client.get(f"/devices/{device_id}")
+    owner_id = await _create_user(async_client)
+    device = await _create_device(async_client, "Humidity Sensor", owner_id)
+
+    response = await async_client.get(f"/devices/{device['id']}")
 
     assert response.status_code == 200
     assert response.json()["name"] == "Humidity Sensor"
-    assert response.json()["user_id"] == user_id
+    assert response.json()["user_id"] == owner_id
 
 
 async def test_update_device(async_client: AsyncClient):
-    user_response = await async_client.post(
-        "/users/",
-        json={"username": "device_updater", "email": "updater@example.com"}
-    )
-    user_id = user_response.json()["id"]
+    """
+    Проверяет частичное обновление сущности.
 
-    create_response = await async_client.post(
-        "/devices/",
-        json={
-            "name": "Old Sensor Name",
-            "user_id": user_id
-        },
-    )
-    device_id = create_response.json()["id"]
+    Ожидает обновление переданного поля и сохранение остальных полей без изменений.
+    """
+
+    owner_id = await _create_user(async_client)
+    device = await _create_device(async_client, "Old Sensor Name", owner_id)
 
     update_response = await async_client.patch(
-        f"/devices/{device_id}",
-        json={"name": "New Sensor Name"}
+        f"/devices/{device['id']}",
+        json={"name": "New Sensor Name"},
     )
-    device = update_response.json()
+    updated_device = update_response.json()
 
     assert update_response.status_code == 200
-    assert device["name"] == "New Sensor Name"
-    assert device["user_id"] == user_id
+    assert updated_device["name"] == "New Sensor Name"
+    assert updated_device["user_id"] == owner_id
 
 
 async def test_delete_device(async_client: AsyncClient):
-    user_response = await async_client.post(
-        "/users/",
-        json={"username": "device_deleter", "email": "deleter@example.com"}
-    )
-    user_id = user_response.json()["id"]
+    """
+    Проверяет удаление сущности.
 
-    create_response = await async_client.post(
-        "/devices/",
-        json={
-            "name": "Sensor to Delete",
-            "user_id": user_id
-        },
-    )
-    device_id = create_response.json()["id"]
+    Ожидает недоступность объекта при последующем чтении.
+    """
 
-    delete_response = await async_client.delete(
-        f"/devices/{device_id}",
-    )
+    owner_id = await _create_user(async_client)
+    device = await _create_device(async_client, "Sensor to Delete", owner_id)
 
+    delete_response = await async_client.delete(f"/devices/{device['id']}")
     assert delete_response.status_code == 204
 
-    response = await async_client.get(f"/devices/{device_id}")
-
+    response = await async_client.get(f"/devices/{device['id']}")
     assert response.status_code == 404
 
 
 async def test_paginate_device(async_client: AsyncClient):
-    user_response = await async_client.post(
-        "/users/",
-        json={"username": "device_list_user", "email": "list@example.com"}
-    )
-    user_id = user_response.json()["id"]
+    """
+    Проверяет выдачу списка с пагинацией.
 
-    create_response = await async_client.post(
+    Ожидает, что параметры `limit` и `offset` корректно ограничивают результат
+    и возвращают стабильный порядок элементов.
+    """
+
+    owner_id = await _create_user(async_client)
+    first_device = await _create_device(async_client, "Paginated Sensor 1", owner_id)
+    second_device = await _create_device(async_client, "Paginated Sensor 2", owner_id)
+
+    first_response = await async_client.get(
         "/devices/",
-        json={
-            "name": "Paginated Sensor",
-            "user_id": user_id
-        },
+        params={"limit": 1, "offset": 0},
     )
-    device_id = create_response.json()["id"]
-
-    list_response = await async_client.get(
+    second_response = await async_client.get(
         "/devices/",
-        params={
-            "limit": 1,
-            "offset": 0
-        },
+        params={"limit": 1, "offset": 1},
     )
 
-    data = list_response.json()
-    assert len(data) == 1
-    assert data[0]["id"] == device_id
+    assert first_response.status_code == 200
+    assert second_response.status_code == 200
+
+    first = first_response.json()
+    second = second_response.json()
+
+    assert len(first) == 1
+    assert len(second) == 1
+    assert first[0]["id"] == first_device["id"]
+    assert second[0]["id"] == second_device["id"]

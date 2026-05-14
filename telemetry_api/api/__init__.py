@@ -5,10 +5,7 @@ from telemetry_api.api import analytics, devices, users
 
 def create_api() -> FastAPI:
     """
-    Создание инстенса приложения с подключением всех роутеров
-
-    Return:
-        FastAPI - инстанс приложения
+    Создаёт и настраивает экземпляр FastAPI-приложения.
     """
 
     api = FastAPI(

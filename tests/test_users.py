@@ -1,110 +1,143 @@
 from httpx import AsyncClient
 
-async def test_create_user(async_client: AsyncClient):
+
+async def _create_user(async_client: AsyncClient, username: str, email: str) -> dict:
     response = await async_client.post(
         "/users/",
-        json={
-            "username": "kirill",
-            "email": "kirill@example.com"
-        },
+        json={"username": username, "email": email},
     )
 
     assert response.status_code == 201
+    return response.json()
 
-    data = response.json()
+
+async def test_create_user(async_client: AsyncClient):
+    """
+    Проверяет создание сущности.
+
+    Ожидает успешный ответ и возврат идентификатора созданного объекта.
+    """
+
+    data = await _create_user(async_client, "kirill", "kirill@example.com")
+
     assert data["username"] == "kirill"
     assert data["email"] == "kirill@example.com"
     assert "id" in data
 
 
 async def test_get_user(async_client: AsyncClient):
-    create_response = await async_client.post(
-        "/users/",
-        json={
-            "username": "deep-code",
-            "email": "deep-code@example.com"
-        },
-    )
-    user_id = create_response.json()["id"]
+    """
+    Проверяет получение сущности по идентификатору.
 
-    response = await async_client.get(f"/users/{user_id}")
+    Ожидает успешный ответ и корректные данные сохранённого объекта.
+    """
+
+    user = await _create_user(async_client, "deep-code", "deep-code@example.com")
+
+    response = await async_client.get(f"/users/{user['id']}")
 
     assert response.status_code == 200
     assert response.json()["username"] == "deep-code"
 
 
 async def test_update_user(async_client: AsyncClient):
-    create_response = await async_client.post(
-        "/users/",
-        json={
-            "username": "kirill",
-            "email": "no-reply@example.com"
-        },
-    )
-    user_id = create_response.json()["id"]
+    """
+    Проверяет частичное обновление сущности.
+
+    Ожидает обновление переданного поля и сохранение остальных полей без изменений.
+    """
+
+    user = await _create_user(async_client, "kirill", "no-reply@example.com")
 
     update_response = await async_client.patch(
-        f"/users/{user_id}",
-        json={"email": "kirill@example.com"}
+        f"/users/{user['id']}",
+        json={"email": "kirill@example.com"},
     )
-    user = update_response.json()
+    updated_user = update_response.json()
 
     assert update_response.status_code == 200
+    assert updated_user["username"] == "kirill"
+    assert updated_user["email"] == "kirill@example.com"
 
-    assert user["username"] == "kirill"
-    assert user["email"] == "kirill@example.com"
+
+async def test_update_exists_username(async_client: AsyncClient):
+    """
+    Проверяет обновление имени пользователя на уже существующее.
+
+    Ожидает ошибку 409 при передаче существующего username.
+    """
+
+    first_user = await _create_user(async_client, "kirill", "kirill@example.com")
+    second_user = await _create_user(async_client, "deep-code", "no-reply@example.com")
+
+    update_response = await async_client.patch(
+        f"/users/{second_user['id']}",
+        json={"username": first_user["username"]},
+    )
+
+    assert update_response.status_code == 409
 
 
 async def test_delete_user(async_client: AsyncClient):
-    create_response = await async_client.post(
-        "/users/",
-        json={
-            "username": "kirill",
-            "email": "kirill@example.com"
-        },
-    )
-    user_id = create_response.json()["id"]
+    """
+    Проверяет удаление сущности.
 
-    delete_response = await async_client.delete(
-        f"/users/{user_id}",
-    )
+    Ожидает недоступность объекта при последующем чтении.
+    """
 
+    user = await _create_user(async_client, "kirill", "kirill@example.com")
+
+    delete_response = await async_client.delete(f"/users/{user['id']}")
     assert delete_response.status_code == 204
 
-    response = await async_client.get(f"/users/{user_id}")
-
+    response = await async_client.get(f"/users/{user['id']}")
     assert response.status_code == 404
 
 
 async def test_paginate_user(async_client: AsyncClient):
-    create_response = await async_client.post(
-        "/users/",
-        json={
-            "username": "deep-code",
-            "email": "deep-code@example.com"
-        },
-    )
-    user_id = create_response.json()["id"]
+    """
+    Проверяет выдачу списка с пагинацией.
 
-    list_response = await async_client.get(
+    Ожидает, что параметры `limit` и `offset` корректно ограничивают результат
+    и возвращают стабильный порядок элементов.
+    """
+
+    first_user = await _create_user(async_client, "user-1", "user-1@example.com")
+    second_user = await _create_user(async_client, "user-2", "user-2@example.com")
+
+    first_response = await async_client.get(
         "/users/",
-        params={
-            "limit": 1,
-            "offset": 0
-        },
+        params={"limit": 1, "offset": 0},
+    )
+    second_response = await async_client.get(
+        "/users/",
+        params={"limit": 1, "offset": 1},
     )
 
-    data = list_response.json()
-    assert len(data) == 1
-    assert data[0]["id"] == user_id
+    assert first_response.status_code == 200
+    assert second_response.status_code == 200
+
+    first = first_response.json()
+    second = second_response.json()
+
+    assert len(first) == 1
+    assert len(second) == 1
+    assert first[0]["id"] == first_user["id"]
+    assert second[0]["id"] == second_user["id"]
 
 
 async def test_invalid_email(async_client: AsyncClient):
+    """
+    Проверяет валидацию входных данных.
+
+    Ожидает ошибку 422 при передаче невалидного email.
+    """
+
     create_response = await async_client.post(
         "/users/",
         json={
             "username": "admin",
-            "email": "not-a-email"
+            "email": "not-a-email",
         },
     )
 

@@ -1,9 +1,10 @@
 from telemetry_api.api import api as app
-from telemetry_api.database.database import engine, Base
-from telemetry_api.database import models
+from telemetry_api.config import config
+from telemetry_api.database import models  # ! do not delete
+from telemetry_api.database.database import Base, engine
 
-import uvicorn
 from contextlib import asynccontextmanager
+import uvicorn
 
 
 @asynccontextmanager
@@ -19,4 +20,4 @@ async def lifespan(app):
 app.router.lifespan_context = lifespan
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host=config.host, port=config.port, reload=True)

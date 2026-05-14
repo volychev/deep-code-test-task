@@ -1,21 +1,57 @@
-from pydantic import BaseModel, ConfigDict, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class UserBase(BaseModel):
-    username: str
-    email: EmailStr
+    """
+    Базовая схема пользователя.
+    """
+
+    username: str = Field(
+        ...,
+        description="Уникальное имя пользователя в системе.",
+        examples=["kirill"],
+    )
+    email: EmailStr = Field(
+        ...,
+        description="Email пользователя в валидном формате.",
+        examples=["kirill@example.com"],
+    )
 
 
 class UserCreate(UserBase):
+    """
+    Схема создания пользователя.
+    """
+
     pass
 
 
 class UserUpdate(BaseModel):
-    username: str | None = None
-    email: EmailStr | None = None
+    """
+    Схема частичного обновления пользователя.
+    """
+
+    username: str | None = Field(
+        default=None,
+        description="Новое имя пользователя; если не передано, поле не изменяется.",
+        examples=["kirill"],
+    )
+    email: EmailStr | None = Field(
+        default=None,
+        description="Новый email пользователя; если не передан, поле не изменяется.",
+        examples=["kirill@example.com"],
+    )
 
 
 class UserRead(UserBase):
-    id: int
+    """
+    Схема ответа с данными пользователя.
+    """
+
+    id: int = Field(
+        ...,
+        description="Уникальный идентификатор пользователя.",
+        examples=[1],
+    )
 
     model_config = ConfigDict(from_attributes=True)

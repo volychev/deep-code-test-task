@@ -11,7 +11,7 @@ if config.debug:
         echo=True
     )
 else:
-    SQLALCHEMY_DATABASE_URL = f"postgresql+asyncpg://{config.postgres_user}:{config.postgres_password}@{config.postgres_host}:{config.postgres_port}/{config.postgres_database}"
+    SQLALCHEMY_DATABASE_URL = f"postgresql+asyncpg://{config.postgres_user.get_secret_value()}:{config.postgres_password.get_secret_value()}@{config.postgres_host.get_secret_value()}:{config.postgres_port}/{config.postgres_db}"
     engine = create_async_engine(SQLALCHEMY_DATABASE_URL)
 
 AsyncSessionLocal = async_sessionmaker(

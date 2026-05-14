@@ -2,13 +2,14 @@ from telemetry_api.database.database import get_db
 from telemetry_api.database.models import User
 from telemetry_api.schemas.users import UserCreate, UserRead, UserUpdate
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 router = APIRouter(
     prefix="/users",
-    tags=["Users"]
+    tags=["Users"],
 )
 
 
@@ -17,7 +18,12 @@ async def create_user(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
     new_user = User(**user_in.model_dump())
     db.add(new_user)
 
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="Username already exists")
+
     await db.refresh(new_user)
     return new_user
 
@@ -40,7 +46,12 @@ async def update_user(user_id: int, user_in: UserUpdate, db: AsyncSession = Depe
     for key, value in update_data.items():
         setattr(user, key, value)
 
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="Username already exists")
+
     await db.refresh(user)
     return user
 
@@ -57,6 +68,10 @@ async def delete_user(user_id: int, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/", response_model=list[UserRead])
-async def get_users(limit: int = 25, offset: int = 0, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(User).offset(offset).limit(limit))
+async def get_users(
+    limit: int = Query(default=25, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(User).order_by(User.id).offset(offset).limit(limit))
     return result.scalars().all()
