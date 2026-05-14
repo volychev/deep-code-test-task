@@ -1,11 +1,9 @@
 # telemetry-api
-При разработке предлагается использовать Python версии не ниже 3.8, pip / poetry.
-
-## Примечания:
-- Пункты отмеченные "\*" необязательны к выполнению
-- Необходимо подготовить описание реализованного сервиса
-- Приложить результаты нагрузочного тестирования
-- Формат предоставления: ссылка на репозиторий с кодом
+![Python](https://img.shields.io/badge/Python-ffffff?logo=python&style=for-the-badge&color=ffffff&logoColor=3776AB) ![FastAPI](https://img.shields.io/badge/FastAPI-ffffff?logo=fastapi&style=for-the-badge&color=ffffff&logoColor=009688) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-ffffff?logo=postgresql&style=for-the-badge&color=ffffff&logoColor=4169E1) ![Redis](https://img.shields.io/badge/Redis-ffffff?logo=redis&style=for-the-badge&color=ffffff&logoColor=DC382D) ![Celery](https://img.shields.io/badge/Celery-ffffff?logo=celery&style=for-the-badge&color=ffffff&logoColor=37814A) ![Locust](https://img.shields.io/badge/Locust-ffffff?style=for-the-badge&color=ffffff) ![Docker](https://img.shields.io/badge/Docker-ffffff?logo=docker&style=for-the-badge&color=ffffff&logoColor=2496ED)
+## Использование:
+```
+docker compose up -d --build
+```
 
 ## Описание системы:
 К реализации предлагается система учета и анализа данных, поступающих с условного устройства. Полученные данные привязываются к временной метке и устройству, с которого пришли данные, и сохраняются в БД. Набор данных используется для дальнейшего анализа.
@@ -34,3 +32,6 @@
 - аналитика показателей происходит в асинхронном режиме при помощи фреймворка Celery*
 - Реализовано нагрузочное тестирование через инструмент locust*
 - Сервис и его окружение разворачивается средствами docker + docker-compose
+
+## Примечания:
+- Пункты отмеченные "\*" необязательны к выполнению
