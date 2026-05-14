@@ -12,7 +12,7 @@ class TelemetryApiUser(HttpUser):
         self._add_measurement(self.device_id)
 
     def _create_user(self) -> int:
-        unique_suffix = uuid.uuid4().hex[:8]\
+        unique_suffix = uuid.uuid4().hex[:8]
         payload = {
             "username": f"user-{unique_suffix}",
             "email": f"{unique_suffix}@example.com",
