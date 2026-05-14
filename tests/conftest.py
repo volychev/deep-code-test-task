@@ -2,6 +2,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from telemetry_api.worker.tasks import device_analytics
 from telemetry_api.database.database import get_db
 from telemetry_api.database.models import Base
 from telemetry_api.main import app
@@ -26,6 +27,7 @@ async def test_get_db():
 
 
 app.dependency_overrides[get_db] = test_get_db
+device_analytics.AsyncSessionLocal = TestingSessionLocal
 
 
 @pytest.fixture(autouse=True)
