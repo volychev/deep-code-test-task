@@ -47,3 +47,13 @@ async def async_client():
 
     async with AsyncClient(transport=transport, base_url="https://example.com") as client:
         yield client
+
+
+API_PREFIX = "/api"
+API_VERSION = "v1"
+API_ROOT = f"{API_PREFIX}/{API_VERSION}"
+
+
+def api_path(path: str) -> str:
+    normalized_path = path if path.startswith("/") else f"/{path}"
+    return f"{API_ROOT}{normalized_path}"

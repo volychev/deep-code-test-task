@@ -1,9 +1,11 @@
 from httpx import AsyncClient
 
+from conftest import api_path
+
 
 async def _create_user(async_client: AsyncClient, username: str, email: str) -> dict:
     response = await async_client.post(
-        "/users/",
+        api_path("/users/"),
         json={"username": username, "email": email},
     )
 
@@ -34,7 +36,8 @@ async def test_get_user(async_client: AsyncClient):
 
     user = await _create_user(async_client, "deep-code", "deep-code@example.com")
 
-    response = await async_client.get(f"/users/{user['id']}")
+    users_url = api_path("/users/").rstrip("/")
+    response = await async_client.get(f"{users_url}/{user['id']}")
 
     assert response.status_code == 200
     assert response.json()["username"] == "deep-code"
@@ -49,10 +52,8 @@ async def test_update_user(async_client: AsyncClient):
 
     user = await _create_user(async_client, "kirill", "no-reply@example.com")
 
-    update_response = await async_client.patch(
-        f"/users/{user['id']}",
-        json={"email": "kirill@example.com"},
-    )
+    users_url = api_path("/users/").rstrip("/")
+    update_response = await async_client.patch(f"{users_url}/{user['id']}", json={"email": "kirill@example.com"})
     updated_user = update_response.json()
 
     assert update_response.status_code == 200
@@ -70,10 +71,8 @@ async def test_update_exists_username(async_client: AsyncClient):
     first_user = await _create_user(async_client, "kirill", "kirill@example.com")
     second_user = await _create_user(async_client, "deep-code", "no-reply@example.com")
 
-    update_response = await async_client.patch(
-        f"/users/{second_user['id']}",
-        json={"username": first_user["username"]},
-    )
+    users_url = api_path("/users/").rstrip("/")
+    update_response = await async_client.patch(f"{users_url}/{second_user['id']}", json={"username": first_user["username"]})
 
     assert update_response.status_code == 409
 
@@ -87,10 +86,11 @@ async def test_delete_user(async_client: AsyncClient):
 
     user = await _create_user(async_client, "kirill", "kirill@example.com")
 
-    delete_response = await async_client.delete(f"/users/{user['id']}")
+    users_url = api_path("/users/").rstrip("/")
+    delete_response = await async_client.delete(f"{users_url}/{user['id']}")
     assert delete_response.status_code == 204
 
-    response = await async_client.get(f"/users/{user['id']}")
+    response = await async_client.get(f"{users_url}/{user['id']}")
     assert response.status_code == 404
 
 
@@ -106,11 +106,11 @@ async def test_paginate_user(async_client: AsyncClient):
     second_user = await _create_user(async_client, "user-2", "user-2@example.com")
 
     first_response = await async_client.get(
-        "/users/",
+        api_path("/users/"),
         params={"limit": 1, "offset": 0},
     )
     second_response = await async_client.get(
-        "/users/",
+        api_path("/users/"),
         params={"limit": 1, "offset": 1},
     )
 
@@ -134,7 +134,7 @@ async def test_invalid_email(async_client: AsyncClient):
     """
 
     create_response = await async_client.post(
-        "/users/",
+        api_path("/users/"),
         json={
             "username": "admin",
             "email": "not-a-email",

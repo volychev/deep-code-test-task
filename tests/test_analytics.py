@@ -1,9 +1,11 @@
 from httpx import AsyncClient
 
+from conftest import api_path
+
 
 async def _create_user(async_client: AsyncClient) -> int:
     response = await async_client.post(
-        "/users/",
+        api_path("/users/"),
         json={"username": "kirill", "email": "kirill@example.com"},
     )
     return response.json()["id"]
@@ -11,7 +13,7 @@ async def _create_user(async_client: AsyncClient) -> int:
 
 async def _create_device(async_client: AsyncClient, name: str, user_id: int) -> int:
     response = await async_client.post(
-        "/devices/",
+        api_path("/devices/"),
         json={"name": name, "user_id": user_id},
     )
     return response.json()["id"]
@@ -27,10 +29,8 @@ async def test_add_measurement(async_client: AsyncClient):
     user_id = await _create_user(async_client)
     device_id = await _create_device(async_client, "Analytics Device", user_id)
 
-    response = await async_client.post(
-        f"/analytics/{device_id}/data",
-        json={"x": 1.5, "y": 2.5, "z": 3.5},
-    )
+    analytics_url = api_path("/analytics/").rstrip("/")
+    response = await async_client.post(f"{analytics_url}/{device_id}/data", json={"x": 1.5, "y": 2.5, "z": 3.5})
 
     assert response.status_code == 201
     data = response.json()
@@ -49,10 +49,8 @@ async def test_add_measurement_device_not_found(async_client: AsyncClient):
     Ожидает код 404 при обращении к отсутствующему объекту.
     """
 
-    response = await async_client.post(
-        "/analytics/999999/data",
-        json={"x": 1.0, "y": 2.0, "z": 3.0},
-    )
+    analytics_url = api_path("/analytics/").rstrip("/")
+    response = await async_client.post(f"{analytics_url}/999999/data", json={"x": 1.0, "y": 2.0, "z": 3.0})
 
     assert response.status_code == 404
 
@@ -67,17 +65,12 @@ async def test_get_analytics_by_device(async_client: AsyncClient):
     user_id = await _create_user(async_client)
     device_id = await _create_device(async_client, "Analytics Reader Device", user_id)
 
-    await async_client.post(
-        f"/analytics/{device_id}/data",
-        json={"x": 1.0, "y": 2.0, "z": 3.0}
-    )
-    await async_client.post(
-        f"/analytics/{device_id}/data",
-        json={"x": 3.0, "y": 4.0, "z": 5.0}
-    )
+    analytics_url = api_path("/analytics/").rstrip("/")
+    await async_client.post(f"{analytics_url}/{device_id}/data", json={"x": 1.0, "y": 2.0, "z": 3.0})
+    await async_client.post(f"{analytics_url}/{device_id}/data", json={"x": 3.0, "y": 4.0, "z": 5.0})
 
     response = await async_client.get(
-        "/analytics/",
+        api_path("/analytics/"),
         params={"device_id": device_id, "limit": 25, "offset": 0},
     )
 
@@ -107,15 +100,16 @@ async def test_get_analytics_by_user_uses_stable_pagination(async_client: AsyncC
     first_device_id = await _create_device(async_client, "Device A", user_id)
     second_device_id = await _create_device(async_client, "Device B", user_id)
 
-    await async_client.post(f"/analytics/{first_device_id}/data", json={"x": 1.0, "y": 1.0, "z": 1.0})
-    await async_client.post(f"/analytics/{second_device_id}/data", json={"x": 2.0, "y": 2.0, "z": 2.0})
+    analytics_url = api_path("/analytics/").rstrip("/")
+    await async_client.post(f"{analytics_url}/{first_device_id}/data", json={"x": 1.0, "y": 1.0, "z": 1.0})
+    await async_client.post(f"{analytics_url}/{second_device_id}/data", json={"x": 2.0, "y": 2.0, "z": 2.0})
 
     first_page_response = await async_client.get(
-        "/analytics/",
+        api_path("/analytics/"),
         params={"user_id": user_id, "limit": 1, "offset": 0},
     )
     second_page_response = await async_client.get(
-        "/analytics/",
+        api_path("/analytics/"),
         params={"user_id": user_id, "limit": 1, "offset": 1},
     )
 
@@ -138,7 +132,7 @@ async def test_get_analytics_requires_filter(async_client: AsyncClient):
     Ожидает ошибку 400 при отсутствии обязательного фильтра запроса.
     """
 
-    response = await async_client.get("/analytics/")
+    response = await async_client.get(api_path("/analytics/"))
     assert response.status_code == 400
 
 
@@ -150,7 +144,7 @@ async def test_get_analytics_validates_limit_and_offset(async_client: AsyncClien
     """
 
     response = await async_client.get(
-        "/analytics/",
+        api_path("/analytics/"),
         params={"device_id": 1, "limit": 0, "offset": -1},
     )
 
@@ -164,6 +158,6 @@ async def test_generate_analytics_route_not_conflicting(async_client: AsyncClien
     Ожидает бизнес-ошибку фильтров, а не парсинг `generate` как `device_id`.
     """
 
-    response = await async_client.post("/analytics/generate")
+    response = await async_client.post(api_path("/analytics/generate"))
 
     assert response.status_code == 400

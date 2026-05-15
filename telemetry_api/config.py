@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
     celery_result_expires: int = 12 * 60 * 60
+    api_prefix: str = "/api"
+    default_api_version: str = "v1"
 
     postgres_user: SecretStr
     postgres_password: SecretStr
@@ -27,7 +29,7 @@ class Settings(BaseSettings):
 
 
 @lru_cache
-def get_config() -> BaseSettings:
+def get_config() -> Settings:
     return Settings()
 
 

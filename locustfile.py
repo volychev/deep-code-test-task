@@ -2,6 +2,10 @@ import uuid
 
 from locust import HttpUser, between, task
 
+API_PREFIX = "/api"
+API_VERSION = "v1"
+API_ROOT = f"{API_PREFIX}/{API_VERSION}"
+
 
 class TelemetryApiUser(HttpUser):
     wait_time = between(0.5, 3.0)
@@ -19,9 +23,9 @@ class TelemetryApiUser(HttpUser):
         }
 
         with self.client.post(
-            "/users/",
+            f"{API_ROOT}/users/",
             json=payload,
-            name="POST /users/",
+            name=f"POST {API_ROOT}/users/",
             catch_response=True
         ) as response:
             if response.status_code != 201:
@@ -38,9 +42,9 @@ class TelemetryApiUser(HttpUser):
         }
 
         with self.client.post(
-            "/devices/",
+            f"{API_ROOT}/devices/",
             json=payload,
-            name="POST /devices/",
+            name=f"POST {API_ROOT}/devices/",
             catch_response=True
         ) as response:
             if response.status_code != 201:
@@ -58,9 +62,9 @@ class TelemetryApiUser(HttpUser):
         }
 
         with self.client.post(
-            f"/analytics/{device_id}/data",
+            f"{API_ROOT}/analytics/{device_id}/data",
             json=payload,
-            name="POST /analytics/{device_id}/data",
+            name=f"POST {API_ROOT}/analytics/{device_id}/data",
             catch_response=True,
         ) as response:
             if response.status_code != 201:
@@ -78,7 +82,12 @@ class TelemetryApiUser(HttpUser):
             "offset": 0,
         }
 
-        with self.client.get("/analytics/", params=params, name="GET /analytics/?device_id", catch_response=True) as response:
+        with self.client.get(
+            f"{API_ROOT}/analytics/",
+            params=params,
+            name=f"GET {API_ROOT}/analytics/?device_id",
+            catch_response=True
+        ) as response:
             if response.status_code != 200:
                 response.failure(f"Unexpected status: {response.status_code}, body={response.text}")
                 return
@@ -90,9 +99,9 @@ class TelemetryApiUser(HttpUser):
     @task(2)
     def get_users(self):
         with self.client.get(
-            "/users/",
+            f"{API_ROOT}/users/",
             params={"limit": 10, "offset": 0},
-            name="GET /users/",
+            name=f"GET {API_ROOT}/users/",
             catch_response=True,
         ) as response:
             if response.status_code != 200:
@@ -101,9 +110,9 @@ class TelemetryApiUser(HttpUser):
     @task(2)
     def get_devices(self):
         with self.client.get(
-            "/devices/",
+            f"{API_ROOT}/devices/",
             params={"limit": 10, "offset": 0},
-            name="GET /devices/",
+            name=f"GET {API_ROOT}/devices/",
             catch_response=True,
         ) as response:
             if response.status_code != 200:

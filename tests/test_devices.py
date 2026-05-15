@@ -1,9 +1,11 @@
 from httpx import AsyncClient
 
+from conftest import api_path
+
 
 async def _create_user(async_client: AsyncClient) -> int:
     response = await async_client.post(
-        "/users/",
+        api_path("/users/"),
         json={"username": "kirill", "email": "kirill@example.com"},
     )
     return response.json()["id"]
@@ -11,7 +13,7 @@ async def _create_user(async_client: AsyncClient) -> int:
 
 async def _create_device(async_client: AsyncClient, name: str, user_id: int | None) -> dict:
     response = await async_client.post(
-        "/devices/",
+        api_path("/devices/"),
         json={"name": name, "user_id": user_id},
     )
 
@@ -58,7 +60,8 @@ async def test_get_device(async_client: AsyncClient):
     owner_id = await _create_user(async_client)
     device = await _create_device(async_client, "Humidity Sensor", owner_id)
 
-    response = await async_client.get(f"/devices/{device['id']}")
+    devices_url = api_path("/devices/").rstrip("/")
+    response = await async_client.get(f"{devices_url}/{device['id']}")
 
     assert response.status_code == 200
     assert response.json()["name"] == "Humidity Sensor"
@@ -75,10 +78,8 @@ async def test_update_device(async_client: AsyncClient):
     owner_id = await _create_user(async_client)
     device = await _create_device(async_client, "Old Sensor Name", owner_id)
 
-    update_response = await async_client.patch(
-        f"/devices/{device['id']}",
-        json={"name": "New Sensor Name"},
-    )
+    devices_url = api_path("/devices/").rstrip("/")
+    update_response = await async_client.patch(f"{devices_url}/{device['id']}", json={"name": "New Sensor Name"})
     updated_device = update_response.json()
 
     assert update_response.status_code == 200
@@ -96,10 +97,11 @@ async def test_delete_device(async_client: AsyncClient):
     owner_id = await _create_user(async_client)
     device = await _create_device(async_client, "Sensor to Delete", owner_id)
 
-    delete_response = await async_client.delete(f"/devices/{device['id']}")
+    devices_url = api_path("/devices/").rstrip("/")
+    delete_response = await async_client.delete(f"{devices_url}/{device['id']}")
     assert delete_response.status_code == 204
 
-    response = await async_client.get(f"/devices/{device['id']}")
+    response = await async_client.get(f"{devices_url}/{device['id']}")
     assert response.status_code == 404
 
 
@@ -116,11 +118,11 @@ async def test_paginate_device(async_client: AsyncClient):
     second_device = await _create_device(async_client, "Paginated Sensor 2", owner_id)
 
     first_response = await async_client.get(
-        "/devices/",
+        api_path("/devices/"),
         params={"limit": 1, "offset": 0},
     )
     second_response = await async_client.get(
-        "/devices/",
+        api_path("/devices/"),
         params={"limit": 1, "offset": 1},
     )
 
